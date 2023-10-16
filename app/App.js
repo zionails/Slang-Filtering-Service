@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, SafeAreaView, StyleSheet, } from 'react-native';
+import { View, Text, SafeAreaView, StyleSheet, Image} from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import { RFValue } from 'react-native-responsive-fontsize';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-toast-message';
 import Home from './components/Home';
 import Manage from './components/Manages';
 import Setting from './components/Setting';
-import { createStackNavigator } from '@react-navigation/stack';
 
 const getIcon = (route, focused, color) => {
   let IconComponent = Ionicons;
@@ -35,7 +34,23 @@ const getIcon = (route, focused, color) => {
 
 const Tab = createBottomTabNavigator();
 
-export default function App() {  
+export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);  // 예를 들어, 3초 후에 로딩 상태를 false로 설정합니다.
+  }, []);
+
+  if (isLoading) {
+    return (
+      <View style={styles.splashScreenContainer}>
+        <Image source={require('./assets/splashicon.png')} style={styles.logo} />
+        <Text>Loading...</Text>
+      </View>
+    );
+  }
 
   return (
     <SafeAreaProvider style={{ flex: 1 }}>
@@ -91,6 +106,7 @@ export default function App() {
         </Tab.Navigator>
 
       </NavigationContainer>
+      <Toast />
     </SafeAreaProvider>
   );
 }
@@ -107,5 +123,15 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
+  },
+  splashScreenContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',  // 배경색
+  },
+  logo: {
+    margin: 20,
+    resizeMode: 'contain',  // 이미지의 원래 비율을 유지하면서 가능한 한 많은 공간을 채우도록 크기를 조절합니다.
   },
 });

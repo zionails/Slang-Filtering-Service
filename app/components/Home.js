@@ -5,7 +5,6 @@ import {
     TextInput, TouchableOpacity
 } from 'react-native';
 import { Card, Text } from 'react-native-elements';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import axios from 'axios';
 import Toast from 'react-native-toast-message';
@@ -13,7 +12,7 @@ import Toast from 'react-native-toast-message';
 const InquiryContent = ({ item, openModal }) => (
     <TouchableWithoutFeedback onPress={() => openModal(item, item)}>
         <Card containerStyle={styles.cardContainer}>
-            <Card.Title>{item.Category}</Card.Title>
+            <Card.Title>{item.Title}</Card.Title>
             <Card.Divider />
             <View style={styles.cardContent}>
                 <Text style={styles.cardText}>{item.Contents}</Text>
@@ -42,20 +41,18 @@ const ImagePreview = ({ images, toggleImageSize }) => (
     </View>
 );
 
-export default function AppMain() {
+export default function Home() {
   const [posts, setPosts] = useState([]);
   const [answer, setAnswer] = useState('');
   const [pageno, setPageno] = useState(1);
   const [images, setImages] = useState([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState(null);
-  const [lastPage, setLastPage] = useState(false);
+  const [lastPage, setLastPage] = useState(true);
   const [showFullImage, setShowFullImage] = useState(false);
   const [currentFullImageUrl, setCurrentFullImageUrl] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isAnswering, setIsAnswering] = useState(false);
-
-  const toastRef = useRef(null); 
 
   const toggleImageSize = (url) => {
     setCurrentFullImageUrl(url);
@@ -67,12 +64,9 @@ export default function AppMain() {
     let nextPage = checkNextPage ? pageno + 1 : pageno;
 
     const requestData = {
-      Affiliation1,
-      Affiliation2,
       UserName,
       AccountID,
       pageno: nextPage,
-      IsAnswered: "True"
     };
 
     let response;
@@ -152,14 +146,9 @@ export default function AppMain() {
 
     try {
       const formData = {
-        UserEmail: selectedItem.Email,
         InquiryNumber: selectedItem.ID,
-        CategoryName: selectedItem.Category,
-        InquiryType: "앱 버그 보고",
         InquiryValue: selectedItem.Contents,
-        AnswerValue: answer,
         AnswerFileAttach: fileUrlsString,
-        UserComment: "없음",
       };
       console.log(formData)
 
@@ -206,17 +195,26 @@ export default function AppMain() {
     setAnswer(text);
   };
 
+  // useEffect(() => {
+  //   fetchData();
+  // }, [pageno]);
+
   useEffect(() => {
-    fetchData();
-  }, [pageno]);
+    setPosts(
+      [{
+        ID: 1,
+        Title: "제목 테스트",
+        Contents: "내용 테스트",
+        WriteDate: "2023-10-09 14:34:56"
+      }]
+    );
+  }, []);
 
   const openModal = (post, item) => {
     setSelectedPost(post);
     setSelectedItem({
-      Email: item.Email,
-      Category: item.Category,
-      Contents: item.Contents,
-      ID: item.id
+      Title: item.Title,
+      Contents: item.Contents      
     });
     if (item.AnswerContents) {
       // selectedPost에 AnswerFilePath가 존재하면 이미지를 images 상태에 추가
@@ -243,25 +241,18 @@ export default function AppMain() {
   const openModalWithImage = (post, url, item) => {
     setSelectedPost(post);
     setSelectedItem({
-      Email: item.Email,
-      Category: item.Category,
-      Contents: item.Contents,
-      ID: item.ID
+      Title: item.Title,
+      Contents: item.Contents
     });
     setModalVisible(true);
     toggleImageSize(url);
   };
-
-  const ForwardedToast = React.forwardRef((props, ref) => {
-    return <Toast {...props} forwardedRef={ref} />;
-  });
 
   const renderItem = ({ item }) => (
     <SafeAreaView>
         <ScrollView>
             <InquiryContent item={item} openModal={openModal} />
             <Modal
-                animationType="slide"
                 transparent={false}
                 visible={modalVisible}
                 onRequestClose={closeModal}
@@ -271,24 +262,7 @@ export default function AppMain() {
                     {selectedPost?.Filepath && (
                         <ImagePreview images={selectedPost?.Filepath} toggleImageSize={toggleImageSize} />
                     )}
-                    <TextInput
-                        style={styles.TextInput}
-                        placeholder="답변 내용"
-                        value={answer}
-                        onChangeText={handleAnswerChange}
-                    />
-                    <View style={styles.imageRow}>
-                        {images.map((uri, index) => (
-                            <View key={index} style={{ position: 'relative', margin: 5 }}>
-                                <Image source={{ uri }} style={styles.answerImage} />
-                                <TouchableWithoutFeedback onPress={() => removeImage(index)}>
-                                    <View style={styles.deleteButton}>
-                                        <Text style={{ color: 'white', fontWeight: 'bold' }}>X</Text>
-                                    </View>
-                                </TouchableWithoutFeedback>
-                            </View>
-                        ))}
-                    </View>
+                    
                     <TouchableOpacity
                         style={[styles.closeButton, isAnswering && styles.disabledButton]}
                         onPress={closeModal}
@@ -297,7 +271,6 @@ export default function AppMain() {
                         <Text style={[styles.buttonText, isAnswering && styles.disabledButtonText]}>닫기</Text>
                     </TouchableOpacity>
                 </View>
-                <ForwardedToast ref={toastRef} />
             </Modal>
         </ScrollView>
     </SafeAreaView>
@@ -325,14 +298,13 @@ export default function AppMain() {
       <FlatList
         data={posts}
         renderItem={renderItem}
-        keyExtractor={item => item.id}
+        keyExtractor={item => item.ID.toString()}
       />
       <View style={styles.buttonContainer}>
         <Button title="이전" onPress={() => setPageno(prev => Math.max(prev - 1, 1))} disabled={pageno === 1} />
         <Button title="다음" onPress={() => setPageno(prev => prev + 1)} disabled={lastPage} />
       </View>
       <Modal
-        animationType="slide"
         transparent={false}
         visible={modalVisible}
         onRequestClose={closeModal}
@@ -348,7 +320,7 @@ export default function AppMain() {
           ) : (
             <SafeAreaView>
               <ScrollView>
-                <Text style={styles.modalTitle}>{selectedPost?.Category}</Text>
+                <Text style={styles.modalTitle}>{selectedPost?.Title}</Text>
                 <Text style={styles.modalText}>{selectedPost?.Contents}</Text>
                 <Text style={styles.modalDate}>{selectedPost?.WriteDate}</Text>
                 {selectedPost?.Filepath && (
@@ -366,24 +338,6 @@ export default function AppMain() {
               </ScrollView>
             </SafeAreaView>
           )}
-          <TextInput
-            style={styles.TextInput}
-            placeholder="답변 내용"
-            value={answer}
-            onChangeText={handleAnswerChange}
-          />
-          <View style={styles.imageRow}>
-            {images.map((uri, index) => (
-              <View key={index} style={{ position: 'relative', margin: 5 }}>
-                <Image source={{ uri }} style={styles.answerImage} />
-                <TouchableWithoutFeedback onPress={() => removeImage(index)}>
-                  <View style={styles.deleteButton}>
-                    <Text style={{ color: 'white', fontWeight: 'bold' }}>X</Text>
-                  </View>
-                </TouchableWithoutFeedback>
-              </View>
-            ))}
-          </View>
           <TouchableOpacity
             style={[styles.closeButton, isAnswering && styles.disabledButton]}
             onPress={closeModal}
@@ -392,7 +346,6 @@ export default function AppMain() {
             <Text style={[styles.buttonText, isAnswering && styles.disabledButtonText]}>닫기</Text>
           </TouchableOpacity>
         </View>
-        <Toast ref={toastRef} />
       </Modal>
     </SafeAreaView>
   );
@@ -425,9 +378,9 @@ const styles = StyleSheet.create({
   // 모달의 스타일을 업데이트
   modalContainer: {
     flex: 1,
-    margin: 20,
+    margin: 10,
     backgroundColor: '#f9f9f9',  // 모달의 배경색을 변경
-    borderRadius: 10,  // 모달의 모서리를 둥글게
+    borderRadius: 5,  // 모달의 모서리를 둥글게
     shadowColor: "#000",
     shadowOffset: {
         width: 0,
