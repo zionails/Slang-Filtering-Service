@@ -3,7 +3,9 @@ import { View, Text, TextInput, Button, Modal, StyleSheet, TouchableOpacity } fr
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import axios from 'axios';
 import Signup from './Signup';
+import config from '../config.json';
 
 export default function Login({ closeLoginModal }) {
     const [accountID, setAccountID] = useState('');
@@ -14,26 +16,27 @@ export default function Login({ closeLoginModal }) {
 
     const Login = async () => {
         try {
-            // const formData = {
-            //     AccountID: accountID,
-            //     Passwords: password,
-            // };
+            const formData = {
+                accountid: accountID,
+                password: password,
+            };
 
-            // const jsonString = JSON.stringify(formData);
+            const jsonString = JSON.stringify(formData);
 
-            // const LoginUrl = 'LoginURL';
-            // // Axios를 사용하여 POST 요청 보내기
-            // const Loginresponse = await axios.post(LoginUrl, jsonString, {
-            //     headers: {
-            //         'Content-Type': 'application/json',
-            //     },
-            // });
+            const LoginUrl = config.serverIP + '/login';
+            // Axios를 사용하여 POST 요청 보내기
+            const Loginresponse = await axios.post(LoginUrl, jsonString, {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
 
             try {
-                // var AccountID = Loginresponse.data.message.AccountID.toString();
-                // var UserName = Loginresponse.data.message.UserName.toString();
-                await AsyncStorage.setItem("AccountID", "1");
-                await AsyncStorage.setItem("UserName", "2");
+                var AccountID = Loginresponse.data.data.accountid.toString();
+                var UserName = Loginresponse.data.data.username.toString();
+                await AsyncStorage.setItem("AccountID", AccountID);
+                await AsyncStorage.setItem("UserName", UserName);
+                console.log(AccountID);
 
             } catch (e) {
                 // 오류 처리

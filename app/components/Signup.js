@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, Button, StyleSheet, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import axios from 'axios';
+import config from '../config.json';
 
 export default function Signup({ onClose }) {
     const [Name, setName] = useState('');
@@ -10,11 +12,26 @@ export default function Signup({ onClose }) {
 
     const Signup = async () => {
         try {
-
-            onClose();
+            const signupData = {
+                accountid: accountID,
+                email: Email,
+                username: Name,                
+                password: password,
+            };
+    
+            const signupUrl = config.serverIP + '/signup';
+            const response = await axios.post(signupUrl, signupData);
+            if (response.status === 200) {
+                // 회원가입 성공 처리, 예를 들어 사용자에게 성공 메시지 표시
+                alert('회원가입 성공!');
+                onClose(); // 회원가입 창 닫기
+            } else {
+                // 서버에서 오류 응답이 반환된 경우
+                alert('회원가입 실패: ' + response.data.message);
+            }
         } catch (error) {
-            // 에러 처리를 수행하세요.
-            console.error('데이터 저장 중 오류 발생:', error);
+            // 네트워크 오류나 기타 예외 상황 처리
+            console.error('회원가입 중 오류 발생:', error);
         }
     };
 

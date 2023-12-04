@@ -46,6 +46,7 @@ export default function Setting() {
     const logout = async () => {
         try {
             await AsyncStorage.multiRemove([
+                'ID',
                 'AccountID',
                 'UserName',
             ]);

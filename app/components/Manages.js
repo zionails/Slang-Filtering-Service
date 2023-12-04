@@ -5,8 +5,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialIcons } from '@expo/vector-icons';
 import Toast from "react-native-toast-message";
 import axios from 'axios';
-
-// 분류(카테고리)
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import config from '../config.json';
 
 export default function AppInquiry() {
   const [title, setTitle] = useState('');
@@ -32,20 +32,25 @@ export default function AppInquiry() {
 
 
   const pickImage = async () => {
-    let result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.All,
-      quality: 1,
-    });
+    try {
+      let result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        quality: 1,
+      });
 
-    if (images.length >= 3) {
-      showErrorDialog();
-      return;
+      if (images.length >= 3) {
+        showErrorDialog();
+        return;
+      }
+
+      if (!result.canceled) {
+        const uri = result.assets[0].uri;
+        setImages([...images, uri]);
+      }
+    } catch (error) {
+      console.error(error);
     }
 
-    if (!result.canceled) {
-      const uri = result.assets[0].uri;
-      setImages([...images, uri]);
-    }
   };
 
   const removeImage = (uri) => {
@@ -53,77 +58,75 @@ export default function AppInquiry() {
   };
 
   const submitForm = async () => {
-    setIsSubmitting(true);
     try {
-      // 이미지 업로드 결과를 저장할 배열
-      const fileUrls = [];
-
-      // 서버 엔드포인트 URL 설정
-      const imageapiUrl = '글쓰기API';
-      for (let i = 0; i < images.length; i++) {
-        const filePath = images[i].replace('file://', '');
-        const fileData = {
-          uri: images[i],
-          type: 'image/jpeg',
-          name: `${filePath.split('/').pop()}`,
-        };
-
-        const imageData = new FormData();
-        imageData.append('image', fileData);
-
-        try {
-          const imageresponse = await axios.post(imageapiUrl, imageData, {
-            headers: {
-              'Content-Type': 'multipart/form-data',
-            },
-          });
-
-          const fileUrl = imageresponse.data.fileUrl;
-          fileUrls.push(fileUrl);
-        } catch (error) {
-          console.error("AppInquriy:", error);
-          return null;
-        }
+      setIsSubmitting(true); 
+      var AccountID = await AsyncStorage.getItem('AccountID');
+      if (!AccountID) {
+        // AccountID가 없으면 로그인이 필요하다는 알림을 표시합니다.
+        Alert.alert(
+            "로그인 필요",
+            "이 기능을 사용하기 위해서는 로그인이 필요합니다.",
+            [{ text: "OK", onPress: () => console.log("OK Pressed") }]
+        );
+        return;
       }
+      const formData = new FormData();
 
-      const formData = {
-        Contents: content,
-        file1: fileUrls.length > 0 ? fileUrls[0] : '',
-        file2: fileUrls.length > 0 ? fileUrls[1] : '',
-        file3: fileUrls.length > 0 ? fileUrls[2] : ''
-      };
+      formData.append('title', title);
+      formData.append('content', content);
+      formData.append('user_id', AccountID);
+      // 각 이미지를 formData에 추가합니다.
+      images.forEach((image, index) => {
+        if (image) {
+          // 이미지 URI에서 파일 확장자를 추출하여 MIME 타입을 결정합니다.
+          const fileType = image.match(/\.(jpeg|jpg|png)$/i) ? image.match(/\.(jpeg|jpg|png)$/i)[0] : '.jpg';
+          const mimeType = (fileType === '.png') ? 'image/png' : 'image/jpeg';
 
-      const jsonString = JSON.stringify(formData);
+          const imageFile = {
+            uri: image,
+            type: mimeType, // MIME 타입 동적 할당
+            name: `image${index + 1}${fileType}`, // 파일 확장자를 포함한 파일명
+          };
+          formData.append(`image${index + 1}`, imageFile);
+        }
+      });
 
-      // 서버 엔드포인트 URL 설정
-      const apiUrl2 = 'https://findbin.uiharu.dev/app/api/AppInquiry/api.php';
-
+      const WriteURL = config.serverIP + '/write';
       // Axios를 사용하여 POST 요청 보내기
-      const response = await axios.post(apiUrl2, jsonString, {
+      const Writeresponse = await axios.post(WriteURL, formData, {
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
       });
 
-      console.log(fileUrls);
+      console.log(Writeresponse.data.result.toString());
+      if (Writeresponse.data.result.toString() == 'success') {
+        // 'clean'이 아니면 비속어가 감지된 것으로 간주하고 알림을 표시합니다.
+        Alert.alert(
+          "작성 완료",
+          "게시물이 성공적으로 작성되었습니다.",
+          [
+            { text: "확인"}
+          ],
+          { cancelable: false }
+        );
+        setTitle('');
+        setContent('');
+        setImages([]);
+      } else if(Writeresponse.data.result.toString() !== 'clean'){
+        // 'clean'이 아니면 비속어가 감지된 것으로 간주하고 알림을 표시합니다.
+        Alert.alert(
+          "비속어 감지",
+          "비속어가 감지되었습니다.\n유형 : "+ Writeresponse.data.result.toString(),
+          [{ text: "OK", onPress: () => console.log("OK Pressed") }]
+        );
+      }
+      setIsSubmitting(false); 
 
-      // 원하는 서버 응답 처리 로직을 추가하세요.
-      setContent('');
-      setEmail('');
-      setImages([]);
-      // Toast 메시지 표시 (제출 성공 여부에 따라 다른 메시지 출력 가능)
-      Toast.show({
-        text1: "제출이 완료되었습니다.",
-      });
     } catch (error) {
-      console.error("AppInquriy:", error);
-      // Toast 메시지 표시 (제출 실패 메시지)
-      Toast.show({
-        text1: "제출에 실패하였습니다. 다시 시도해주세요.",
-      });
-    } finally {
-      // 작업이 완료되면 제출 상태를 다시 활성화
-      setIsSubmitting(false);
+      alert('작성 실패');
+      console.error('작성 요청 실패:', error);
+      // 요청 실패 시 다음 작업을 수행하세요.
     }
   };
 
@@ -155,12 +158,13 @@ export default function AppInquiry() {
     },
   };
 
+
   return (
     <Provider>
       <SafeAreaView style={styles.safeArea}>
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.container}>
-          <TextInput
+            <TextInput
               style={[styles.input, styles.title]}
               label="제목"
               mode="outlined"
@@ -172,14 +176,13 @@ export default function AppInquiry() {
               style={[styles.input, styles.textArea]}
               label="내용"
               mode="outlined"
-              multiline
               numberOfLines={10}
               value={content}
               onChangeText={setContent}
               theme={{ colors: { primary: '#6200ea' } }}
             />
 
-            <Button icon="camera" mode="contained" onPress={pickImage} style={styles.button}>
+            <Button icon="camera" mode="contained" onPress={pickImage} style={styles.button} disabled={isSubmitting}>
               이미지 선택
             </Button>
 
@@ -227,53 +230,53 @@ export default function AppInquiry() {
 
 const styles = StyleSheet.create({
   safeArea: {
-      flex: 1,
+    flex: 1,
   },
   container: {
-      flex: 1,
-      padding: 16,
-      backgroundColor: '#f5f5f5',
+    flex: 1,
+    padding: 16,
+    backgroundColor: '#f5f5f5',
   },
   title: {
     marginBottom: 12,
     backgroundColor: '#fff',
   },
   input: {
-      marginBottom: 12,
-      backgroundColor: '#fff',
+    marginBottom: 12,
+    backgroundColor: '#fff',
   },
   textArea: {
-      height: 150,
+    height: 150,
   },
   button: {
-      marginBottom: 12,
-      backgroundColor: '#6200ea',
+    marginBottom: 12,
+    backgroundColor: '#6200ea',
   },
   imagesContainer: {
-      flexDirection: 'row',
-      marginBottom: 12,
+    flexDirection: 'row',
+    marginBottom: 12,
   },
   imageContainer: {
-      position: 'relative',
-      marginRight: 8,
+    position: 'relative',
+    marginRight: 8,
   },
   image: {
-      width: 100,
-      height: 100,
-      borderRadius: 8,
+    width: 100,
+    height: 100,
+    borderRadius: 8,
   },
   icon: {
-      position: 'absolute',
-      top: -10,
-      right: -10,
+    position: 'absolute',
+    top: -10,
+    right: -10,
   },
   footer: {
-      flex: 1,
-      justifyContent: 'flex-end',
-      marginBottom: 16,
+    flex: 1,
+    justifyContent: 'flex-end',
+    marginBottom: 16,
   },
   submitButton: {
-      backgroundColor: '#6200ea',
+    backgroundColor: '#6200ea',
   },
 });
 
